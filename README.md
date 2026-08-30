@@ -45,11 +45,14 @@ See `backend-selector.js` for the full API: `detectWebgpu`, `detectOllama`,
   server-side with its own budget controls.
 - **BYO keys never leave the browser** except to the provider they're for. Never logged,
   never sent to any of this library's own infrastructure (it has none).
-- **Open requirement, not yet implemented:** which backend *actually executed* a request
-  must become an observable, first-class output of `chat()` — not just which tier was
-  selected. See `docs/availability-vs-capability.md`, "Design requirement" section.
+- **Which backend actually executed is observable**, per `docs/availability-vs-capability.md`'s
+  "Design requirement" section — not just which tier was selected. Implemented so far for
+  the `webgpu` tier only: `chat('webgpu', ...)`'s response includes `device: 'webgpu' |
+  'wasm'`, so a silent driver-level fallback to WASM (~100x slower) is no longer invisible
+  to the calling app. `ollama` and `byok` tiers have no such ambiguity (there's exactly one
+  backend behind each), so they don't need this field.
 
 ## Consumers
 
 - `raajkumars/sundai-hack138-boston311-mcp` (Sundai Hack 138 project 2)
-- `raajkumars/sundai-hackathon-2026-08-30` (Sundai Hack 138 project 1) — pending
+- `raajkumars/sundai-hackathon-2026-08-30` (Sundai Hack 138 project 1)

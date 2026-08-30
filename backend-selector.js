@@ -110,6 +110,8 @@ export function pickTier(detection, settings) {
 
 // ---- WebGPU adapter -----------------------------------------------------
 
+let webgpuActualDevice = null // 'webgpu' or 'wasm' — which one actually initialized, not which was requested
+
 async function loadWebgpuGenerator(onProgress) {
   if (webgpuGenerator) return webgpuGenerator
   const { pipeline, env } = await import(new URL(TRANSFORMERS_URL, window.location.href).href)
@@ -118,9 +120,11 @@ async function loadWebgpuGenerator(onProgress) {
   env.localModelPath = new URL(MODEL_PATH, window.location.href).href
   try {
     webgpuGenerator = await pipeline('text-generation', WEBGPU_MODEL, { dtype: 'q4', device: 'webgpu', progress_callback: onProgress })
+    webgpuActualDevice = 'webgpu'
   } catch (_) {
     // Adapter probed available but device init still failed (driver-level) — fall back once, same as before.
     webgpuGenerator = await pipeline('text-generation', WEBGPU_MODEL, { dtype: 'q4', device: 'wasm', progress_callback: onProgress })
+    webgpuActualDevice = 'wasm'
   }
   return webgpuGenerator
 }
@@ -137,6 +141,11 @@ async function chatWebgpu({ messages, maxTokens = 60, onProgress }) {
     loadDurationMs: 0,
     promptTokens: 0,
     outputTokens: 0,
+    // Design requirement from docs/availability-vs-capability.md: which
+    // backend actually executed must be observable, not just which tier
+    // was selected. 'webgpu' requested but genuinely got 'wasm' (~100x
+    // slower) is a real, silent-until-now failure mode this surfaces.
+    device: webgpuActualDevice,
   }
 }
 
