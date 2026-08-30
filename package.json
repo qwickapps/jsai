@@ -1,0 +1,9 @@
+{
+  "name": "@qwickapps/jsai",
+  "version": "0.1.0",
+  "description": "In-browser AI backend resolver: WebGPU -> local Ollama -> BYO API key (Groq/OpenRouter), with observable tier selection.",
+  "type": "module",
+  "main": "backend-selector.js",
+  "files": ["backend-selector.js", "ollama-client.js"],
+  "license": "UNLICENSED"
+}
