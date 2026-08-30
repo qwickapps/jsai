@@ -22,12 +22,24 @@ import { chatOllama, listOllamaModels, ollamaTools as toOpenAiTools, DEFAULT_OLL
 
 // Call configure() once, before any other export, to namespace localStorage
 // per host app and/or pick a different default WebGPU model. Optional —
-// sensible defaults work out of the box for a single-app page.
+// sensible defaults work out of the box for a single-app page whose own
+// origin hosts vendor/transformers.min.js and models/ at those paths.
+//
+// transformersUrl/modelPath are resolved against the HOST PAGE's URL
+// (window.location.href), not against this module's own URL — this
+// module is commonly loaded cross-origin (e.g. from a CDN), and a plain
+// relative import/path here would otherwise resolve against the CDN's
+// origin instead of the app's, 404ing on vendor/model assets that only
+// exist on the app's own origin.
 let SETTINGS_KEY = 'jsai-backend-settings-v1'
 let WEBGPU_MODEL = 'onnx-community/SmolLM2-135M-Instruct-ONNX'
-export function configure({ namespace, webgpuModel } = {}) {
+let TRANSFORMERS_URL = './vendor/transformers.min.js'
+let MODEL_PATH = './models/'
+export function configure({ namespace, webgpuModel, transformersUrl, modelPath } = {}) {
   if (namespace) SETTINGS_KEY = `jsai-backend-settings-${namespace}-v1`
   if (webgpuModel) WEBGPU_MODEL = webgpuModel
+  if (transformersUrl) TRANSFORMERS_URL = transformersUrl
+  if (modelPath) MODEL_PATH = modelPath
 }
 
 let webgpuGenerator = null // lazily loaded transformers.js pipeline
@@ -100,10 +112,10 @@ export function pickTier(detection, settings) {
 
 async function loadWebgpuGenerator(onProgress) {
   if (webgpuGenerator) return webgpuGenerator
-  const { pipeline, env } = await import('./vendor/transformers.min.js')
+  const { pipeline, env } = await import(new URL(TRANSFORMERS_URL, window.location.href).href)
   env.allowRemoteModels = false
   env.allowLocalModels = true
-  env.localModelPath = './models/'
+  env.localModelPath = new URL(MODEL_PATH, window.location.href).href
   try {
     webgpuGenerator = await pipeline('text-generation', WEBGPU_MODEL, { dtype: 'q4', device: 'webgpu', progress_callback: onProgress })
   } catch (_) {
