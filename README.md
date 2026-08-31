@@ -52,6 +52,37 @@ See `backend-selector.js` for the full API: `detectWebgpu`, `detectOllama`,
   to the calling app. `ollama` and `byok` tiers have no such ambiguity (there's exactly one
   backend behind each), so they don't need this field.
 
+## Known limitation: the Ollama tier cannot work from a hosted (non-local) page
+
+**If your app is served from anywhere other than `localhost`/a private-network address,
+`detectOllama()` will always fail — this is a hard Chrome security boundary, not a config
+problem, and no `OLLAMA_ORIGINS` setting fixes it.** Verified directly, not assumed:
+
+- Chrome's **Private Network Access (PNA)** policy blocks a page loaded from a public
+  origin (any real HTTPS domain) from reaching a private/loopback address like
+  `127.0.0.1` at all, *before* the target server or CORS is even consulted. The browser
+  requires the target to answer the preflight with `Access-Control-Allow-Private-Network:
+  true`.
+- Ollama's server does not send that header — confirmed by reading
+  [`server/routes.go`](https://github.com/ollama/ollama/blob/main/server/routes.go)'s CORS
+  middleware directly. There is no Ollama setting that adds it.
+- Reproduced live: loading a real hosted page and pointing it at a real local server gives
+  `...has been blocked by CORS policy: Permission was denied for this request to access the
+  \`loopback\` address space` — a PNA block, distinguishable from an ordinary CORS failure
+  (`No 'Access-Control-Allow-Origin' header is present`, which is what the *same* request
+  gets instead when the calling page itself is served from `localhost`).
+
+**Consequence:** the Ollama tier only works when the host app itself is served locally
+(`localhost`/LAN), where the request is loopback-to-loopback and PNA does not apply —
+`OLLAMA_ORIGINS` is then the correct and sufficient fix, same as it always was. A hosted
+public deployment of an app using this library should present the WebGPU or BYOK tier as
+the real options and either hide the Ollama tier or clearly label it "local dev only."
+
+This library does not currently detect PNA-vs-plain-CORS as a distinct failure reason in
+`detectOllama()`'s `reason` string (both surface as a generic "unreachable" message) —
+worth doing, since it would let a host app explain the *right* fix to a user instead of a
+generic "check Ollama is running."
+
 ## Consumers
 
 - `raajkumars/sundai-hack138-boston311-mcp` (Sundai Hack 138 project 2)

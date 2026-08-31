@@ -84,6 +84,12 @@ export async function detectWebgpu() {
   }
 }
 
+// If the calling page is not served from localhost/a private-network address,
+// this will always fail with a generic "unreachable" reason — Chrome's
+// Private Network Access policy blocks the request before Ollama is ever
+// asked, and Ollama's server does not implement the preflight response that
+// would allow it. No OLLAMA_ORIGINS setting fixes this. See README "Known
+// limitation: the Ollama tier cannot work from a hosted (non-local) page".
 export async function detectOllama(baseUrl = DEFAULT_OLLAMA_URL) {
   try {
     const models = await listOllamaModels(baseUrl)
